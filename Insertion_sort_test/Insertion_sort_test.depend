@@ -1,0 +1,11 @@
+# depslib dependency file v1.0
+1606150834 source:c:\users\user\documents\university of york\documents\year_3\final_project\insertion_sort_test\servos.c
+	"servos.h"
+
+1606164366 c:\users\user\documents\university of york\documents\year_3\final_project\insertion_sort_test\servos.h
+
+1606165150 source:c:\users\user\documents\university of york\documents\year_3\final_project\insertion_sort_test\main.c
+	<stdio.h>
+	<stdlib.h>
+	"servos.h"
+

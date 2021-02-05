@@ -1,0 +1,36 @@
+# depslib dependency file v1.0
+1609958339 source:c:\users\user\documents\university of york\documents\year 2\algorithms\linkedlists\arraylist.c
+	<stdio.h>
+	<stdlib.h>
+	"list.h"
+
+1609961638 c:\users\user\documents\university of york\documents\year 2\algorithms\linkedlists\list.h
+
+1610904604 source:c:\users\user\documents\university of york\documents\year 2\algorithms\linkedlists\main.c
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+	"list.h"
+	"sort.h"
+
+1588074661 c:\users\user\documents\university of york\documents\year 2\algorithms\linkedlists\sort.h
+	"list.h"
+
+1610908444 source:c:\users\user\documents\university of york\documents\year 2\algorithms\linkedlists\linkedlist.c
+	<stdio.h>
+	<stdlib.h>
+	"list.h"
+
+1612519374 source:c:\users\user\documents\university of york\documents\year_3\final_project\sorting\main.c
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+	"list.h"
+
+1612519759 c:\users\user\documents\university of york\documents\year_3\final_project\sorting\list.h
+
+1612519720 source:c:\users\user\documents\university of york\documents\year_3\final_project\sorting\linkedlist.c
+	<stdio.h>
+	<stdlib.h>
+	"list.h"
+
