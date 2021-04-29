@@ -75,7 +75,7 @@ class Servos_
             {
                 position_ = 100;
             }
-            onTime_  = ((2us*position) + 500us);
+            onTime_  = ((20us*position) + 500us);
             offTime_ = (20ms-onTime_);
         }
 
