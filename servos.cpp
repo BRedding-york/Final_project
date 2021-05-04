@@ -2,6 +2,7 @@
 #include <cstdint>
 
 //Methods for the ServoNode class.
+
 ServoList::ServoNode::ServoNode(PinName pinNo, uint16_t index, uint8_t position) :
     out_(pinNo),
     index_(index)
@@ -42,6 +43,7 @@ ServoList::ServoList(std::chrono::microseconds minOnTime ,
     noOfServo_(0),
     running_(false)
 {
+    counter = 0;
     MINONTIME = minOnTime;
     MAXONTIME = onTimeLen;
     GROUPTIME = MINONTIME + MAXONTIME;
@@ -102,8 +104,12 @@ int ServoList::remove(int index)
 
 void ServoList::start()
 {
-    running_ = true;
-    run();
+    if(!running_)
+    {
+        running_ = true;
+        counter = 0;
+        run();
+    }
 }
 
 void ServoList::end()
@@ -169,13 +175,25 @@ void ServoList::run()
         int groups = noOfServo_ / GROUPSIZE;
         for(int i = 0; i < groups - 1; i++)                             // Turn on each group sequentially 
         {
-            timer.attach( callback( this, &ServoList::onGroup(i)), GROUPTIME*(i+1));       
+            timer.attach( callback( this, &ServoList::nextGroupOn), GROUPTIME*(i+1));       
         }
     }
     __enable_irq();
 }
 
-void ServoList::onGroup(int groupNo)
+void ServoList::nextGroupOn()// I can just do this 6 times???
+{
+    int groups = noOfServo_ / GROUPSIZE;    // How many groups are currently held.
+    groupOn(counter);
+    if(counter < groups)
+    {
+        counter++;
+    } else {
+        counter = 0;
+    }
+}
+
+void ServoList::groupOn(int groupNo)
 {
     int NoServos = GROUPSIZE;
     int groups = noOfServo_ / GROUPSIZE;    // How many groups are currently held.

@@ -66,6 +66,7 @@ private:
     static const uint8_t ITRPTTIME = 100;                           // Length of time taken to service interrupt in us.
     static const uint8_t NUMBEROFGROUPS = 6;                        // Number of groups possible.
     static Timeout timer;                                           // Timeout that all callbacks use
+    static int counter;
 
     /* Non-static member variables*/
     int noOfServo_;                     // no of servos currently held in the list.
@@ -77,10 +78,14 @@ private:
      */
     void run();
 
+    /** Callback wrapper for groupOn. Calls the next groupOn in the rotation and handles the inputs.
+     */
+    void nextGroupOn();
+
     /** Smaller sub-method for the run method, turns on the servos in one individual group.
      * @param groupNo, The group of servos to be turned on.
      */
-    void onGroup(int groupNo);
+    void groupOn(int groupNo);
 
     /** Sorts a group of servo motors that is mostly sorted. Uses Bubble sort.
      * @param groupNo, The group of servos to be sorted.
@@ -158,4 +163,6 @@ public:
             }
         }
     }*/
+
+    
 };
