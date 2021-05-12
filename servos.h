@@ -19,9 +19,9 @@ private:
         uint8_t position_;                      // position between 0 and 256.
         uint16_t index_;                        // Index of the servo according to the user.
         std::chrono::microseconds onTime_;      // Length of time the servo is on for.
-        std::chrono::microseconds offTime_;     // Length of time the servo is off for. Do I need this?
+        //std::chrono::microseconds offTime_;     // Length of time the servo is off for. Do I need this?
         DigitalOut out_;                        // The pin that the servo is attached to.
-        Timeout* timerptr_;                     // The pointer to the Timeout for callbacks
+        static Timeout* timerptr_;                     // The pointer to the Timeout for callbacks
 
     public:
         /** Constructor for servoNode class
@@ -51,27 +51,31 @@ private:
         /** Either turns out_ on or off. */ void operator = (bool switcher);
         
         /** Updates the position_, onTime_ and offTime_ variables. */ void setPosition(uint8_t position);
+
+        /** passes the pointer to the timer into the ServoNode class. */ static void setTimer(Timeout *timer);
     };
 
 // ServoList class starts here
 
     /* Static member variable*/
-    static std::chrono::microseconds CYCLETIME;                     // The length of time before the next cycle will start.
-    static std::chrono::microseconds MINONTIME;                     // The minimum on time for these servos.
-    static std::chrono::microseconds GROUPTIME;                     // Length of time taken to guarentee no clashes.
-    static std::chrono::microseconds MAXONTIME;                     // The maximum on time for these servos.
-    static uint16_t MINONTIMEINT;
-    static uint8_t GROUPSIZE;                                       // Number of servos in each group. MINONTIME must be put manually in here
-    static uint16_t MAXSERVOS;                                      // The total number of servos that can be stored.
     static const uint8_t ITRPTTIME = 100;                           // Length of time taken to service interrupt in us.
     static const uint8_t NUMBEROFGROUPS = 6;                        // Number of groups possible.
-    static Timeout timer;                                           // Timeout that all callbacks use
-    static int counter;
+
+    static std::chrono::microseconds CYCLETIME;                     // The length of time before the next cycle will start.
+    static std::chrono::microseconds MINONTIME;                     // The minimum on time for these servos.
+    static uint16_t MINONTIMEINT;                                   // The minimum on time for these servos in us.
+    static std::chrono::microseconds MAXONTIME;                     // The maximum on time for these servos.
+    static std::chrono::microseconds GROUPTIME;                     // Length of time taken to guarentee no clashes.
+    static uint8_t GROUPSIZE;                                       // Number of servos in each group.
+    static uint16_t MAXSERVOS;                                      // The total number of servos that can be stored.
+    static Timeout timer_;                                           // Timeout that all callbacks use
 
     /* Non-static member variables*/
-    int noOfServo_;                     // no of servos currently held in the list.
-    ServoNode *list_[NUMBEROFGROUPS];   // 2D array-type list containing the servo data.
+    uint16_t noOfServos_;               // no of servos currently held in the list.
+    uint8_t counter_;                   // Counter for turning on the groups in order.
     bool running_;                      // Switch for running the main loop.
+    bool isSorted_;                     // A checker for when the whole list is completely sorted.
+    ServoNode *list_[NUMBEROFGROUPS];   // 2D array-type list containing the servo data.
 
     
     /** The main function of this program. Turns on all servo pins for the correct length of time.

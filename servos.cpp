@@ -15,7 +15,7 @@ void ServoList::ServoNode::setPosition(uint8_t position)
     position_ = position;
     std::chrono::microseconds ontime = MINONTIME + ((MAXONTIME - MINONTIME) * position / 256);
     onTime_ = ontime;
-    offTime_ = CYCLETIME - onTime_;
+    //offTime_ = CYCLETIME - onTime_;
 }
 
 void ServoList::ServoNode::operator = (bool switcher)
@@ -23,14 +23,19 @@ void ServoList::ServoNode::operator = (bool switcher)
     out_ = switcher;
     if(switcher)
     {
-        timer.attach( callback( this, &ServoNode::off), onTime_);
+        timer_.attach( callback( this, &ServoNode::off), onTime_);
     }
 }
 
 void ServoList::ServoNode::on()
 {
     out_ = true;
-    timer.attach( callback( this, &ServoNode::off), onTime_);
+    timer_.attach( callback( this, &ServoNode::off), onTime_);
+}
+
+void ServoList::ServoNode::setTimer(Timeout *timer)
+{
+    timerptr_ = timer;
 }
 
 
@@ -40,10 +45,11 @@ ServoList::ServoList(std::chrono::microseconds minOnTime ,
                      std::chrono::microseconds onTimeLen , 
                      std::chrono::microseconds cycleTime ,
                      uint16_t minOnTimeInt ): 
-    noOfServo_(0),
+    noOfServos_(0),
     running_(false)
 {
-    counter = 0;
+    isSorted_ = false;
+    counter_ = 0;
     MINONTIME = minOnTime;
     MAXONTIME = onTimeLen;
     GROUPTIME = MINONTIME + MAXONTIME;
@@ -51,21 +57,23 @@ ServoList::ServoList(std::chrono::microseconds minOnTime ,
     CYCLETIME = cycleTime;
     MINONTIMEINT = minOnTimeInt;
     GROUPSIZE = minOnTimeInt / ITRPTTIME;
+    ServoNode::setTimer(&timer_);
 }
 
 // Public methods.
 
 int ServoList::add(PinName pinNo, uint8_t position, uint16_t index)
 {
-    if (noOfServo_ == MAXSERVOS) 
+    if (noOfServos_ == MAXSERVOS) 
     {
         return 0;
     }
-    int quotient = noOfServo_ / GROUPSIZE;
-    int remainder = noOfServo_ % GROUPSIZE;
+    int quotient = noOfServos_ / GROUPSIZE;
+    int remainder = noOfServos_ % GROUPSIZE;
     ServoNode servo(pinNo, index, position);
     list_[quotient][remainder] = servo;
-    noOfServo_++;
+    noOfServos_++;
+    isSorted_ = false;
     return 1;
 }
 
@@ -78,6 +86,7 @@ int ServoList::remove(int index)
         {
             if (list_[i][j].getIndex() == index) 
             {
+                __disable_irq();
                 removeCheck = true;
                 if (j < GROUPSIZE - 1) 
                 {
@@ -92,22 +101,25 @@ int ServoList::remove(int index)
                 }
             }
         }
-        sortSorted(i);  // Only one out of place.
+        if(removeCheck)
+        {
+            __enable_irq();
+            sortSorted(i);  // Only one out of place.
+        }
     }
     if (removeCheck)    // Something has been removed
     {
-        noOfServo_--;
+        noOfServos_--;
         return 1;
     }
     return 0;           // Nothing has been removed (failed to find servo in list)
 }
-
 void ServoList::start()
 {
     if(!running_)
     {
         running_ = true;
-        counter = 0;
+        counter_ = 0;
         run();
     }
 }
@@ -129,6 +141,10 @@ void ServoList::updatePosition(uint16_t index, uint8_t position)
                 list_[i][j] = position;
                 found = true;
             }
+        }
+        if(found)
+        {
+            sortSorted(i);
         }
     }
 }
@@ -168,39 +184,51 @@ uint8_t ServoList::getPosition(uint16_t index)
 
 void ServoList::run()
 {
+    if(!isSorted_)
+    {
+        int groups = noOfServos_ / GROUPSIZE;
+        for(int i = 0; i < groups - 1; i++)
+        {
+            sortUnsorted(i);
+        }
+    }
     __disable_irq();    // This is the most crucial part for the timing, nothing can interrupt this.
     if(running_)
     {
-        timer.attach( callback( this, &ServoList::run), CYCLETIME);     // Start the process again in 20ms
-        int groups = noOfServo_ / GROUPSIZE;
+        timer_.attach( callback( this, &ServoList::run), CYCLETIME);     // Start the process again in 20ms
+        int groups = noOfServos_ / GROUPSIZE;
         for(int i = 0; i < groups - 1; i++)                             // Turn on each group sequentially 
         {
-            timer.attach( callback( this, &ServoList::nextGroupOn), GROUPTIME*(i+1));       
+            timer_.attach( callback( this, &ServoList::nextGroupOn), GROUPTIME*(i+1));       
         }
     }
     __enable_irq();
 }
 
-void ServoList::nextGroupOn()// I can just do this 6 times???
+void ServoList::nextGroupOn()
 {
-    int groups = noOfServo_ / GROUPSIZE;    // How many groups are currently held.
-    groupOn(counter);
-    if(counter < groups)
+    int groups = noOfServos_ / GROUPSIZE;    // How many groups are currently held.
+    groupOn(counter_);
+    if(counter_ < groups)
     {
-        counter++;
+        counter_++;
     } else {
-        counter = 0;
+        counter_ = 0;
     }
 }
 
 void ServoList::groupOn(int groupNo)
 {
     int NoServos = GROUPSIZE;
-    int groups = noOfServo_ / GROUPSIZE;    // How many groups are currently held.
+    int groups = noOfServos_ / GROUPSIZE;    // How many groups are currently held.
     if(groupNo == groups - 1)
     {
-        NoServos = noOfServo_ % GROUPSIZE;  // If the end group, find the number in the group.
+        NoServos = noOfServos_ % GROUPSIZE;  // If the end group, find the number in the group.
     } 
+    if(!isSorted_)
+    {
+        sortSorted(groupNo);
+    }
     for(int j = 0; ; j++)
     {
         if(list_[groupNo][j].getPosition() != NULL) // There should never be a NULL value if everything is done right, does this need to be here?
@@ -215,21 +243,21 @@ void ServoList::sortSorted(int groupNo)
 {
     bool changed;
     int numEntities;
-
-    if(groupNo < (noOfServo_ / GROUPSIZE))
+    
+    if(groupNo < (noOfServos_ / GROUPSIZE))
     {
         numEntities = GROUPSIZE;                // Full group of servos
     } else
     {
-        numEntities = noOfServo_ % GROUPSIZE;   // Find the number of servos in the last group
+        numEntities = noOfServos_ % GROUPSIZE;   // Find the number of servos in the last group
     }
 
+    __disable_irq();
     do
     {
         changed = false;
         for(int i = 1; i < numEntities; i++)
         {
-            __disable_irq();
             if(list_[groupNo][i].getOnTime() > list_[groupNo][i+1].getOnTime()) // Are they in the wrong order?
             {                                                                   // Then swap them.
                 ServoNode temp = list_[groupNo][i];
@@ -237,23 +265,24 @@ void ServoList::sortSorted(int groupNo)
                 list_[groupNo][i+1] = temp;
                 changed = true;         // Something has changed don't end sorting
             }
-            __enable_irq();
         }
     }while ( !changed ); // Stops when sorting is complete. i.e. when nothing has changed on a full pass.
+    isSorted_ = true;
+    __enable_irq();
 }
 
 void ServoList::sortUnsorted(int groupNo)
 {
     int added;
     int numEntities;
-
-    if (groupNo < (noOfServo_ / GROUPSIZE)) 
+    if (groupNo < (noOfServos_ / GROUPSIZE)) 
     {
         numEntities = GROUPSIZE;                // Full group of servos.
     } else 
     {
-        numEntities = noOfServo_ % GROUPSIZE;   // Find number of servos in the last group.
+        numEntities = noOfServos_ % GROUPSIZE;   // Find number of servos in the last group.
     }
+    __disable_irq();
 
     for (int i = 0; i < numEntities; i++) 
     {
@@ -274,6 +303,8 @@ void ServoList::sortUnsorted(int groupNo)
             }
         }
     }
+    __enable_irq();
+    isSorted_ = true;
 }
 
 
